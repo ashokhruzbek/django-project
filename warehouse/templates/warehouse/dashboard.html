@@ -1,0 +1,638 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+    .stat-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 20px;
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
+        z-index: 1;
+    }
+    
+    .stat-card .card-body {
+        position: relative;
+        z-index: 2;
+        padding: 2rem;
+    }
+    
+    .stat-card .icon-wrapper {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        transition: transform 0.3s ease;
+    }
+    
+    .stat-card:hover .icon-wrapper {
+        transform: scale(1.1) rotate(10deg);
+    }
+    
+    .stat-card .stat-title {
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 0.5rem;
+        opacity: 0.9;
+    }
+    
+    .stat-card .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0;
+        line-height: 1;
+    }
+    
+    .chart-card {
+        border-radius: 20px;
+        background: white;
+        overflow: hidden;
+    }
+    
+    .chart-card .card-header {
+        background: white;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+        padding: 1.5rem;
+    }
+    
+    .chart-card .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--dark-color);
+        margin: 0;
+    }
+    
+    .chart-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .table-card {
+        border-radius: 20px;
+        background: white;
+        overflow: hidden;
+    }
+    
+    .table-card .card-header {
+        background: white;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .table-card .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--dark-color);
+        margin: 0;
+    }
+    
+    .table-card .table {
+        margin: 0;
+    }
+    
+    .table-card .table th {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
+        padding: 1rem 1.5rem;
+        color: var(--primary-color);
+        background: rgba(67, 97, 238, 0.05);
+    }
+    
+    .table-card .table td {
+        padding: 1rem 1.5rem;
+        vertical-align: middle;
+    }
+    
+    .status-badge {
+        padding: 0.5em 1em;
+        border-radius: 10px;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+    
+    .status-badge.completed {
+        background: rgba(76, 201, 240, 0.1);
+        color: var(--success-color);
+    }
+    
+    .status-badge.processing {
+        background: rgba(247, 37, 133, 0.1);
+        color: var(--warning-color);
+    }
+    
+    .status-badge.pending {
+        background: rgba(114, 9, 183, 0.1);
+        color: var(--danger-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1 fw-bold">Dashboard</h1>
+            <p class="text-muted mb-0">Welcome to your warehouse management dashboard</p>
+        </div>
+        <div class="d-flex gap-2">
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" name="export_data" class="btn btn-light">
+                    <i class="fas fa-download me-2"></i>Export
+                </button>
+            </form>
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" name="new_order" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>New Order
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card text-white h-100">
+                <div class="card-body">
+                    <div class="icon-wrapper">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <h6 class="stat-title">Total Products</h6>
+                    <h2 class="stat-value">{{ total_products }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-white h-100" style="background: linear-gradient(135deg, var(--success-color), var(--accent-color))">
+                <div class="card-body">
+                    <div class="icon-wrapper">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <h6 class="stat-title">Total Suppliers</h6>
+                    <h2 class="stat-value">{{ total_suppliers }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-white h-100" style="background: linear-gradient(135deg, var(--warning-color), var(--danger-color))">
+                <div class="card-body">
+                    <div class="icon-wrapper">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <h6 class="stat-title">Total Orders</h6>
+                    <h2 class="stat-value">{{ total_orders }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-white h-100" style="background: linear-gradient(135deg, var(--danger-color), var(--warning-color))">
+                <div class="card-body">
+                    <div class="icon-wrapper">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h6 class="stat-title">Low Stock Items</h6>
+                    <h2 class="stat-value">{{ low_stock_products.count }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-8">
+            <div class="chart-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title">Monthly Orders</h6>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="export_monthly_orders" class="dropdown-item">
+                                        <i class="fas fa-download me-2"></i>Export Data
+                                    </button>
+                                </form>
+                            </li>
+                            <li><a class="dropdown-item" href="{% url 'warehouse:order_list' %}">
+                                <i class="fas fa-chart-line me-2"></i>View Details
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="monthlyOrdersChart" style="height: 350px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="chart-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title">Stock by Category</h6>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="export_category_data" class="dropdown-item">
+                                        <i class="fas fa-download me-2"></i>Export Data
+                                    </button>
+                                </form>
+                            </li>
+                            <li><a class="dropdown-item" href="{% url 'warehouse:product_list' %}">
+                                <i class="fas fa-chart-pie me-2"></i>View Details
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Charts Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="chart-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title">Order Status Distribution</h6>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="export_order_status" class="dropdown-item">
+                                        <i class="fas fa-download me-2"></i>Export Data
+                                    </button>
+                                </form>
+                            </li>
+                            <li><a class="dropdown-item" href="{% url 'warehouse:order_list' %}">
+                                <i class="fas fa-chart-pie me-2"></i>View Details
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="orderChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title">Stock Level Alerts</h6>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-download me-2"></i>Export Data</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-chart-bar me-2"></i>View Details</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="stockLevelChart" height="250"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tables Row -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="table-card">
+                <div class="card-header">
+                    <h6 class="card-title">Low Stock Products</h6>
+                    <a href="{% url 'warehouse:product_list' %}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Category</th>
+                                <th>Quantity</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in low_stock_products %}
+                            <tr>
+                                <td>{{ product.name }}</td>
+                                <td>{{ product.category.name }}</td>
+                                <td>
+                                    <span class="status-badge pending">{{ product.quantity }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <a href="{% url 'warehouse:product_detail' product.pk %}" class="btn btn-sm btn-light">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4">No low stock products</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="table-card">
+                <div class="card-header">
+                    <h6 class="card-title">Recent Orders</h6>
+                    <a href="{% url 'warehouse:order_list' %}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Supplier</th>
+                                <th>Status</th>
+                                <th class="text-end">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in recent_orders %}
+                            <tr>
+                                <td>{{ order.order_number }}</td>
+                                <td>{{ order.supplier.name }}</td>
+                                <td>
+                                    <span class="status-badge {% if order.status == 'completed' %}completed{% elif order.status == 'processing' %}processing{% else %}pending{% endif %}">
+                                        {{ order.status|title }}
+                                    </span>
+                                </td>
+                                <td class="text-end">{{ order.created_at|date:"M d, Y" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4">No orders found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Category Chart
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ category_labels|safe }},
+            datasets: [{
+                data: {{ category_data|safe }},
+                backgroundColor: [
+                    'rgba(67, 97, 238, 0.7)',
+                    'rgba(76, 201, 240, 0.7)',
+                    'rgba(247, 37, 133, 0.7)',
+                    'rgba(114, 9, 183, 0.7)',
+                    'rgba(58, 12, 163, 0.7)'
+                ],
+                borderColor: [
+                    'rgba(67, 97, 238, 1)',
+                    'rgba(76, 201, 240, 1)',
+                    'rgba(247, 37, 133, 1)',
+                    'rgba(114, 9, 183, 1)',
+                    'rgba(58, 12, 163, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                }
+            },
+            cutout: '70%'
+        }
+    });
+
+    // Order Status Chart
+    const orderCtx = document.getElementById('orderChart').getContext('2d');
+    new Chart(orderCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ order_status_labels|safe }},
+            datasets: [{
+                data: {{ order_status_data|safe }},
+                backgroundColor: [
+                    'rgba(76, 201, 240, 0.7)',
+                    'rgba(247, 37, 133, 0.7)',
+                    'rgba(114, 9, 183, 0.7)'
+                ],
+                borderColor: [
+                    'rgba(76, 201, 240, 1)',
+                    'rgba(247, 37, 133, 1)',
+                    'rgba(114, 9, 183, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                }
+            }
+        }
+    });
+
+    // Monthly Orders Chart
+    const monthlyOrdersOptions = {
+        series: [{
+            name: 'Orders',
+            data: {{ monthly_orders_data|safe }}
+        }],
+        chart: {
+            type: 'area',
+            height: 350,
+            toolbar: {
+                show: false
+            },
+            fontFamily: 'Poppins, sans-serif'
+        },
+        dataLabels: {
+            enabled: false
+        },
+        stroke: {
+            curve: 'smooth',
+            width: 3
+        },
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shadeIntensity: 1,
+                opacityFrom: 0.7,
+                opacityTo: 0.3,
+                stops: [0, 90, 100]
+            }
+        },
+        xaxis: {
+            categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            labels: {
+                style: {
+                    fontFamily: 'Poppins, sans-serif',
+                    fontSize: '12px'
+                }
+            }
+        },
+        yaxis: {
+            labels: {
+                style: {
+                    fontFamily: 'Poppins, sans-serif',
+                    fontSize: '12px'
+                }
+            }
+        },
+        colors: ['#4361ee'],
+        grid: {
+            borderColor: '#f1f1f1',
+            strokeDashArray: 5
+        },
+        markers: {
+            size: 4,
+            colors: ['#fff'],
+            strokeColors: '#4361ee',
+            strokeWidth: 2,
+            hover: {
+                size: 7
+            }
+        },
+        tooltip: {
+            theme: 'dark',
+            y: {
+                formatter: function (val) {
+                    return val + ' orders'
+                }
+            }
+        }
+    };
+
+    const monthlyOrdersChart = new ApexCharts(document.querySelector("#monthlyOrdersChart"), monthlyOrdersOptions);
+    monthlyOrdersChart.render();
+
+    // Stock Level Chart
+    const stockLevelOptions = {
+        series: [{
+            name: 'Stock Level',
+            data: [75]
+        }],
+        chart: {
+            type: 'radialBar',
+            height: 250,
+            fontFamily: 'Poppins, sans-serif',
+            toolbar: {
+                show: false
+            }
+        },
+        plotOptions: {
+            radialBar: {
+                startAngle: -135,
+                endAngle: 135,
+                hollow: {
+                    margin: 15,
+                    size: '70%',
+                },
+                track: {
+                    background: '#f1f1f1',
+                    strokeWidth: '100%',
+                },
+                dataLabels: {
+                    name: {
+                        show: false
+                    },
+                    value: {
+                        show: true,
+                        fontSize: '30px',
+                        fontWeight: '600',
+                        formatter: function (val) {
+                            return val + '%'
+                        }
+                    }
+                }
+            }
+        },
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shade: 'dark',
+                shadeIntensity: 0.15,
+                inverseColors: false,
+                opacityFrom: 1,
+                opacityTo: 1,
+                stops: [0, 50, 65, 91]
+            },
+        },
+        stroke: {
+            dashArray: 4
+        },
+        colors: ['#4cc9f0'],
+        labels: ['Stock Level']
+    };
+
+    const stockLevelChart = new ApexCharts(document.querySelector("#stockLevelChart"), stockLevelOptions);
+    stockLevelChart.render();
+</script>
+{% endblock %} 

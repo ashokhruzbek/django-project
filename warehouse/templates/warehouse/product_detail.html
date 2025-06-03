@@ -1,0 +1,152 @@
+{% extends 'warehouse/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ product.name }}</h1>
+    <div>
+        <button class="btn btn-warning me-2" data-bs-toggle="modal" data-bs-target="#editProductModal">
+            <i class="fas fa-edit me-2"></i>Edit
+        </button>
+        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal">
+            <i class="fas fa-trash me-2"></i>Delete
+        </button>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div class="modal fade" id="editProductModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title">Edit Product</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-warning">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Product Modal -->
+<div class="modal fade" id="deleteProductModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Delete Product</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete "{{ product.name }}"? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="delete" value="true">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Product Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th>SKU:</th>
+                        <td>{{ product.sku }}</td>
+                    </tr>
+                    <tr>
+                        <th>Category:</th>
+                        <td>{{ product.category.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Quantity:</th>
+                        <td>
+                            <span class="badge {% if product.quantity <= 10 %}bg-danger{% elif product.quantity <= 20 %}bg-warning{% else %}bg-success{% endif %}">
+                                {{ product.quantity }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Unit Price:</th>
+                        <td>${{ product.unit_price }}</td>
+                    </tr>
+                    <tr>
+                        <th>Created:</th>
+                        <td>{{ product.created_at|date:"M d, Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Last Updated:</th>
+                        <td>{{ product.updated_at|date:"M d, Y H:i" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Inventory Locations</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Location</th>
+                                <th>Quantity</th>
+                                <th>Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in inventory %}
+                            <tr>
+                                <td>{{ item.location }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.last_updated|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center">No inventory records found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Product Description</h5>
+    </div>
+    <div class="card-body">
+        {% if product.description %}
+            {{ product.description|linebreaks }}
+        {% else %}
+            <p class="text-muted">No description available</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 
